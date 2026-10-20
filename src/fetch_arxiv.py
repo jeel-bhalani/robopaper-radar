@@ -15,16 +15,16 @@ def fetch_papers(category="cs.RO", max_results=20):
         "max_results": max_results,
     }
     response = requests.get(ARXIV_URL, params=params, timeout=30)
-    response.raise_for_status()  # stop with an error if the request failed
+    response.raise_for_status()
 
-    feed = feedparser.parse(response.text)  # turn XML into Python objects
+    feed = feedparser.parse(response.text)
 
     papers = []
     for entry in feed.entries:
         papers.append({
             "arxiv_id": entry.id.split("/abs/")[-1],
-            "title": " ".join(entry.title.split()),      # remove extra spaces/newlines
-            "authors": ", ".join(a.name for a in entry.authors),
+            "title": " ".join(entry.title.split()),
+            "authors": [a.name for a in entry.authors],   # now a LIST
             "published": entry.published,
             "summary": " ".join(entry.summary.split()),
             "url": entry.link,
@@ -37,7 +37,10 @@ def save_to_csv(papers, path="data/papers.csv"):
     with open(path, "w", newline="", encoding="utf-8") as f:
         writer = csv.DictWriter(f, fieldnames=papers[0].keys())
         writer.writeheader()
-        writer.writerows(papers)
+        for p in papers:
+            row = dict(p)
+            row["authors"] = ", ".join(p["authors"])  # list → text for CSV
+            writer.writerow(row)
     print(f"Saved {len(papers)} papers to {path}")
 
 
