@@ -19,3 +19,19 @@ CREATE TABLE IF NOT EXISTS paper_authors (
     author_order INT,
     PRIMARY KEY (paper_id, author_id)
 );
+
+-- Day 3: AI results
+ALTER TABLE papers ADD COLUMN IF NOT EXISTS ai_summary TEXT;
+ALTER TABLE papers ADD COLUMN IF NOT EXISTS difficulty INT;
+ALTER TABLE papers ADD COLUMN IF NOT EXISTS ai_processed_at TIMESTAMPTZ;
+
+CREATE TABLE IF NOT EXISTS topics (
+    id   SERIAL PRIMARY KEY,
+    name TEXT UNIQUE NOT NULL
+);
+
+CREATE TABLE IF NOT EXISTS paper_topics (
+    paper_id INT REFERENCES papers(id) ON DELETE CASCADE,
+    topic_id INT REFERENCES topics(id) ON DELETE CASCADE,
+    PRIMARY KEY (paper_id, topic_id)
+);
