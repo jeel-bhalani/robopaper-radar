@@ -30,3 +30,9 @@ class DayCount(BaseModel):
 class AuthorCount(BaseModel):
     name: str
     paper_count: int
+
+class NewsItem(BaseModel):
+    source: str
+    title: str
+    url: str
+    scraped_at: datetime

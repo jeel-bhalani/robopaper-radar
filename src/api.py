@@ -5,7 +5,7 @@ from pathlib import Path
 from fastapi.staticfiles import StaticFiles
 
 from db import get_connection
-from schemas import Paper, PaperDetail, TopicCount, DayCount, AuthorCount
+from schemas import Paper, PaperDetail, TopicCount, DayCount, AuthorCount, NewsItem
 
 app = FastAPI(
     title="RoboPaper Radar API",
@@ -122,6 +122,16 @@ def top_authors(limit: int = Query(10, ge=1, le=50)):
         LIMIT %s
     """, (limit,))
 
+@app.get("/news", response_model=list[NewsItem])
+def list_news(limit: int = Query(10, ge=1, le=50)):
+    return run_query("""
+        SELECT source, title, url, scraped_at
+        FROM news_articles
+        ORDER BY scraped_at DESC, id
+        LIMIT %s
+    """, (limit,))
+
 # Serve the dashboard (must be the LAST line, after all API routes)
 FRONTEND_DIR = Path(__file__).parent.parent / "frontend"
 app.mount("/", StaticFiles(directory=FRONTEND_DIR, html=True), name="frontend")
+

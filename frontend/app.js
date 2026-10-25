@@ -122,6 +122,21 @@ $("difficulty").addEventListener("change", () => { offset = 0; loadPapers(); });
 $("prev").addEventListener("click", () => { offset -= PAGE_SIZE; loadPapers(); window.scrollTo(0, 0); });
 $("next").addEventListener("click", () => { offset += PAGE_SIZE; loadPapers(); window.scrollTo(0, 0); });
 
+// ---------- Industry news ----------
+async function loadNews() {
+  try {
+    const news = await getJSON("/news?limit=8");
+    $("news").innerHTML = news.length
+      ? news.map((n) =>
+          `<li><a href="${escapeHtml(n.url)}" target="_blank" rel="noopener">${escapeHtml(n.title)}</a></li>`
+        ).join("")
+      : "<li><em>No news yet. Run scrape_news.py</em></li>";
+  } catch (error) {
+    $("news").innerHTML = "<li><em>Could not load news.</em></li>";
+  }
+}
+
 // ---------- Start ----------
 loadStats().catch((error) => console.error("Stats failed:", error));
 loadPapers();
+loadNews();

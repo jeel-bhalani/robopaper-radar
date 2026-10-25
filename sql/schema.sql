@@ -35,3 +35,12 @@ CREATE TABLE IF NOT EXISTS paper_topics (
     topic_id INT REFERENCES topics(id) ON DELETE CASCADE,
     PRIMARY KEY (paper_id, topic_id)
 );
+
+-- Day 6: scraped news
+CREATE TABLE IF NOT EXISTS news_articles (
+    id         SERIAL PRIMARY KEY,
+    source     TEXT NOT NULL,
+    title      TEXT NOT NULL,
+    url        TEXT UNIQUE NOT NULL,
+    scraped_at TIMESTAMPTZ DEFAULT NOW()
+);
