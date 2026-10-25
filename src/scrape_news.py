@@ -75,20 +75,17 @@ def save_articles(articles):
 
 def main():
     if not allowed_by_robots(START_URL):
-        print("❌ robots.txt does not allow scraping this page. Stopping.")
-        return
+        raise RuntimeError("robots.txt does not allow scraping this page")
 
     articles = scrape_headlines(START_URL)
     if not articles:
-        print("⚠️ Found 0 headlines. The page layout may have changed.")
-        print("   Open the site, right-click a headline → Inspect, and update SELECTOR.")
-        return
+        raise RuntimeError("Found 0 headlines - page layout may have changed, update SELECTOR")
 
     for a in articles[:5]:
-        print("•", a["title"])
+        print("-", a["title"])
     new_count = save_articles(articles)
-    print(f"\nFound {len(articles)} headlines, {new_count} new, "
-          f"{len(articles) - new_count} already saved")
+    print(f"Found {len(articles)} headlines, {new_count} new")
+    return new_count
 
 
 if __name__ == "__main__":

@@ -44,3 +44,16 @@ CREATE TABLE IF NOT EXISTS news_articles (
     url        TEXT UNIQUE NOT NULL,
     scraped_at TIMESTAMPTZ DEFAULT NOW()
 );
+
+-- Day 7: record of every automated run
+CREATE TABLE IF NOT EXISTS pipeline_runs (
+    id            SERIAL PRIMARY KEY,
+    started_at    TIMESTAMPTZ NOT NULL,
+    finished_at   TIMESTAMPTZ NOT NULL,
+    status        TEXT NOT NULL,      -- success / partial / failed
+    new_papers    INT,
+    ai_processed  INT,
+    ai_failed     INT,
+    new_news      INT,
+    errors        TEXT
+);

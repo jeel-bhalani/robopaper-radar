@@ -70,6 +70,7 @@ def main(limit):
                 time.sleep(1)  # be polite to the API (rate limits)
 
     print(f"\nDone: {ok} processed, {failed} failed (will retry next run)")
+    return ok, failed
 
 
 if __name__ == "__main__":

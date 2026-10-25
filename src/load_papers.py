@@ -40,8 +40,8 @@ def save_paper(cur, paper):
     return True
 
 
-def main():
-    papers = fetch_papers(max_results=50)
+def main(max_results=100):
+    papers = fetch_papers(max_results=max_results)
     new_count = 0
     with get_connection() as conn:
         with conn.cursor() as cur:
@@ -50,6 +50,7 @@ def main():
                     new_count += 1
     print(f"Fetched {len(papers)} papers, {new_count} new, "
           f"{len(papers) - new_count} already in database")
+    return new_count
 
 
 if __name__ == "__main__":
