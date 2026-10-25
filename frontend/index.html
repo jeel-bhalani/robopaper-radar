@@ -1,0 +1,66 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>RoboPaper Radar</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <header>
+    <h1>🤖 RoboPaper Radar</h1>
+    <p>Newest robotics research, summarized by AI</p>
+  </header>
+
+  <main>
+    <!-- Numbers at the top -->
+    <section class="stats">
+      <div class="stat-card"><span id="stat-papers">–</span><small>Papers</small></div>
+      <div class="stat-card"><span id="stat-topics">–</span><small>Topics</small></div>
+      <div class="stat-card"><span id="stat-author">–</span><small>Top author</small></div>
+    </section>
+
+    <!-- Charts -->
+    <section class="charts">
+      <div class="chart-box">
+        <h2>Papers per topic</h2>
+        <canvas id="topicChart"></canvas>
+      </div>
+      <div class="chart-box">
+        <h2>Papers per day</h2>
+        <canvas id="dayChart"></canvas>
+      </div>
+    </section>
+
+    <!-- Search and filters -->
+    <section class="filters">
+      <input id="search" type="search" placeholder="Search title or abstract...">
+      <select id="topic">
+        <option value="">All topics</option>
+      </select>
+      <select id="difficulty">
+        <option value="">Any difficulty</option>
+        <option value="1">1 – Easy</option>
+        <option value="2">2</option>
+        <option value="3">3 – Medium</option>
+        <option value="4">4</option>
+        <option value="5">5 – Very advanced</option>
+      </select>
+    </section>
+
+    <!-- Paper list (filled by JavaScript) -->
+    <p id="message" class="message"></p>
+    <section id="papers" class="papers"></section>
+
+    <!-- Pages -->
+    <nav class="pagination">
+      <button id="prev">← Previous</button>
+      <span id="page-info">Page 1</span>
+      <button id="next">Next →</button>
+    </nav>
+  </main>
+
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <script src="app.js"></script>
+</body>
+</html>

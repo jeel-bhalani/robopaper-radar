@@ -1,6 +1,8 @@
 from fastapi import FastAPI, HTTPException, Query
 from fastapi.middleware.cors import CORSMiddleware
 from psycopg.rows import dict_row
+from pathlib import Path
+from fastapi.staticfiles import StaticFiles
 
 from db import get_connection
 from schemas import Paper, PaperDetail, TopicCount, DayCount, AuthorCount
@@ -119,3 +121,7 @@ def top_authors(limit: int = Query(10, ge=1, le=50)):
         ORDER BY paper_count DESC
         LIMIT %s
     """, (limit,))
+
+# Serve the dashboard (must be the LAST line, after all API routes)
+FRONTEND_DIR = Path(__file__).parent.parent / "frontend"
+app.mount("/", StaticFiles(directory=FRONTEND_DIR, html=True), name="frontend")
