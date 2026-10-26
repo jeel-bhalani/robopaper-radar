@@ -1,12 +1,14 @@
 # 🤖 RoboPaper Radar
 
+![Tests](https://github.com/jeel-bhalani/robopaper-radar/actions/workflows/tests.yml/badge.svg)
+
 **An automated pipeline that collects the newest robotics research papers and industry news, uses AI to summarize and categorize them, and shows everything on a searchable web dashboard.**
 
 Every day, hundreds of new robotics papers are published on arXiv. RoboPaper Radar fetches them automatically, writes a short plain-English summary for each one, tags it with research topics, rates its difficulty, scrapes the latest robotics industry headlines, and presents it all in a dashboard with search, filters, and charts.
 
 ![Dashboard](docs/dashboard.png)
 
-> 🚧 **Status:** In active development. Pipeline, database, AI enrichment, REST API, dashboard, scraping, and daily automation are working. Docker and extra features are next (see Roadmap).
+> 🚧 **Status:** In active development. Pipeline, database, AI enrichment, REST API, dashboard, scraping, daily automation, and tests with CI are working. Docker and extra features are next (see Roadmap).
 
 ---
 
@@ -22,7 +24,8 @@ Every day, hundreds of new robotics papers are published on arXiv. RoboPaper Rad
 - **Validation of AI output with Pydantic**: bad answers are rejected and retried, never saved
 - **REST API with FastAPI**: search, filters, pagination, statistics, automatic interactive docs
 - **Web dashboard** (HTML, CSS, JavaScript, Chart.js): stats, topic and timeline charts, news, search, filters, pages
-- **Daily automated pipeline** with logging, fault isolation, run tracking in the database, and an optional email digest
+- **Daily automated pipeline** with logging, fault isolation, and run tracking in the database
+- **Automated tests** for the AI validation logic, run on every push with GitHub Actions
 - **Safe by design**: parameterized SQL (no SQL injection), HTML escaping (no XSS), secrets in `.env`
 
 ---
@@ -36,7 +39,7 @@ arXiv API ──► load_papers.py ──► PostgreSQL ◄── ai_enrich.py �
                       │              ▲   ▲            (validated with Pydantic)              │
 News website ──► scrape_news.py ─────┘   │                                                   │
                       │                  │                                                   │
-                      └──► logs/ + pipeline_runs table + email digest ───────────────────────┘
+                      └──► logs/ + pipeline_runs table ──────────────────────────────────────┘
                                          │
                                   FastAPI (api.py)
                                          │  JSON
@@ -57,7 +60,8 @@ News website ──► scrape_news.py ─────┘   │                  
 | Validation | Pydantic |
 | API | FastAPI, Uvicorn |
 | Frontend | HTML, CSS, JavaScript, Chart.js |
-| Automation | Python `logging`, Windows Task Scheduler, `smtplib` (email) |
+| Automation | Python `logging`, Windows Task Scheduler |
+| Testing & CI | pytest, GitHub Actions |
 | Config & secrets | `python-dotenv` (`.env`) |
 | Version control | Git & GitHub |
 | Development | VS Code, AI coding assistant (Claude) |
@@ -68,6 +72,8 @@ News website ──► scrape_news.py ─────┘   │                  
 
 ```
 robopaper-radar/
+├── .github/workflows/
+│   └── tests.yml           # runs tests on every push
 ├── docs/
 │   └── dashboard.png       # screenshot
 ├── frontend/
@@ -90,9 +96,11 @@ robopaper-radar/
 │   ├── scrape_news.py      # responsible news scraper
 │   ├── schemas.py          # API response models
 │   ├── api.py              # REST API + serves the dashboard
-│   ├── digest.py           # optional email digest
 │   └── pipeline.py         # runs all steps with logging
+├── tests/
+│   └── test_analysis.py    # unit tests for AI output validation
 ├── run_pipeline.bat        # entry point for Task Scheduler
+├── pytest.ini              # test settings
 ├── .env                    # secrets (NOT in Git)
 ├── .gitignore
 ├── requirements.txt
@@ -149,7 +157,7 @@ Example: `GET /papers?topic=manipulation&difficulty=3&limit=5`
 ### Setup (Windows / PowerShell)
 
 ```powershell
-git clone https://github.com/YOUR-USERNAME/robopaper-radar.git
+git clone https://github.com/jeel-bhalani/robopaper-radar.git
 cd robopaper-radar
 python -m venv venv
 venv\Scripts\activate
@@ -170,13 +178,6 @@ AI_LIMIT=100
 # AI – Option B: local model
 # LLM_PROVIDER=ollama
 # OLLAMA_MODEL=llama3.2
-
-# Optional email digest
-# SMTP_HOST=smtp.gmail.com
-# SMTP_PORT=587
-# SMTP_USER=you@gmail.com
-# SMTP_PASSWORD=your-app-password
-# DIGEST_TO=you@gmail.com
 ```
 
 ### Run
@@ -197,6 +198,14 @@ python src/ai_enrich.py 5      # AI-process 5 papers (test small first)
 python src/scrape_news.py      # scrape news headlines
 ```
 
+### Run tests
+
+```powershell
+pytest -v
+```
+
+The tests check the AI validation rules: valid answers pass, extra text around the JSON is ignored, topics are cleaned and deduplicated, and invalid answers (unknown topics, difficulty outside 1–5, too many topics, too-long summaries, missing or broken JSON) are rejected. They use fake AI answers, so they need no database, API key, or internet. GitHub Actions runs them on every push.
+
 ### Daily automation (Windows)
 `run_pipeline.bat` is scheduled with Windows Task Scheduler (daily). Logs are written to `logs/pipeline.log`, and every run is recorded in the `pipeline_runs` table.
 
@@ -205,7 +214,7 @@ python src/scrape_news.py      # scrape news headlines
 ## 🧠 Design Decisions
 
 - **Fixed topic list:** keeps tags consistent ("RL" vs "reinforcement learning"), so charts and analysis are reliable.
-- **Never trust AI output blindly:** every answer is parsed and validated (length, topics, score range) before saving.
+- **Never trust AI output blindly:** every answer is parsed and validated (length, topics, score range) before saving, and these rules are covered by unit tests.
 - **Idempotent steps:** `ON CONFLICT DO NOTHING`, unique URLs, and `ai_processed_at IS NULL` mean every step can run daily with no duplicates and no paying twice for AI.
 - **Commit per item:** one failed paper never loses the others, and failed items are retried next run.
 - **Fault isolation in the pipeline:** each step runs separately; one failure gives status `partial`, not a full crash.
@@ -213,6 +222,7 @@ python src/scrape_news.py      # scrape news headlines
 - **Cost control:** `AI_LIMIT` caps AI calls per run.
 - **Responsible scraping:** `robots.txt` check, honest User-Agent, same-site links only, headlines only, and a loud error if the page layout changes.
 - **Security:** parameterized SQL, HTML escaping in the dashboard, input limits in the API (422 for invalid values), secrets only in `.env`.
+- **Reproducible installs:** `requirements.txt` lists only direct dependencies with pinned versions.
 
 ---
 
@@ -225,14 +235,16 @@ python src/scrape_news.py      # scrape news headlines
 - [x] REST API with FastAPI
 - [x] Web dashboard (HTML, CSS, JavaScript, charts)
 - [x] Web scraping of robotics industry news
-- [x] Daily automated pipeline with logging and optional email digest
+- [x] Daily automated pipeline with logging
+- [x] Unit tests for AI output validation + CI with GitHub Actions
 - [ ] Docker & docker-compose
 - [ ] "Chat with papers" (semantic search / RAG)
-- [ ] Data quality report page
-- [ ] Tests (pytest) and CI with GitHub Actions
+- [ ] Data quality report page + insights from real data
+- [ ] More tests (API endpoints, scraper)
+- [ ] Email digest of new papers
 
 ---
 
 ## 🤝 AI-Assisted Development
 
-This project was built with the help of an AI coding assistant (Claude) for planning, explanations, and debugging. All code was run, tested, and debugged by me. The bugs found and fixed along the way are documented in `notes/LEARNING_LOG.md`.
+This project was built with the help of an AI coding assistant (Claude) for planning, explanations, and debugging. All code was run, tested, and debugged by me. The bugs found and fixed along the way, including feedback from a code review, are documented in `notes/LEARNING_LOG.md`.

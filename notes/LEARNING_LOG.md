@@ -185,8 +185,7 @@ I add a new section after every day of work.
 
 ### What I built
 - Scripts now **return** results; `pipeline.py` runs all steps
-- `logs/pipeline.log`, table `pipeline_runs`, optional email digest (`digest.py`)
-- `run_pipeline.bat` + Windows Task Scheduler (daily)
+- `logs/pipeline.log` and table `pipeline_runs` (email digest was planned but removed to keep the scope small; see roadmap)
 
 ### Concepts I learned
 
