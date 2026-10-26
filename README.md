@@ -1,38 +1,47 @@
 # 🤖 RoboPaper Radar
 
-**An automated pipeline that collects the newest robotics research papers, uses AI to summarize and categorize them, and stores everything in a database for search and trend analysis.**
+**An automated pipeline that collects the newest robotics research papers and industry news, uses AI to summarize and categorize them, and shows everything on a searchable web dashboard.**
 
-Every day, hundreds of new robotics papers are published on arXiv. RoboPaper Radar fetches them automatically, writes a short plain-English summary for each one, tags it with research topics, rates its difficulty, and makes the results searchable.
+Every day, hundreds of new robotics papers are published on arXiv. RoboPaper Radar fetches them automatically, writes a short plain-English summary for each one, tags it with research topics, rates its difficulty, scrapes the latest robotics industry headlines, and presents it all in a dashboard with search, filters, and charts.
 
-> 🚧 **Status:** In active development. Data pipeline, database, and AI enrichment are working. API, dashboard, scraping, automation, and Docker are next (see Roadmap).
+![Dashboard](docs/dashboard.png)
+
+> 🚧 **Status:** In active development. Pipeline, database, AI enrichment, REST API, dashboard, scraping, and daily automation are working. Docker and extra features are next (see Roadmap).
 
 ---
 
-## ✨ Features (so far)
+## ✨ Features
 
-- **Paper ingestion from the arXiv API**: fetches the newest papers in the Robotics category (`cs.RO`)
-- **PostgreSQL database** with a normalized schema (papers, authors, topics, and many-to-many link tables)
-- **Duplicate protection**: database constraints and idempotent inserts, so the pipeline can run any number of times safely
-- **AI enrichment with an LLM** (Claude API or a local model via Ollama):
+- **Paper ingestion from the arXiv API**: newest papers in the Robotics category (`cs.RO`)
+- **Responsible web scraping** of robotics industry news (checks `robots.txt`, identifies itself, stores only headlines and links)
+- **PostgreSQL database** with a normalized schema (papers, authors, topics, news, pipeline runs)
+- **AI enrichment with an LLM** (Claude API or local model via Ollama):
   - 2–3 sentence summary in simple English
   - 1–3 topic tags from a fixed list
   - Difficulty score from 1 to 5
-- **Validation of AI output with Pydantic**: wrong or badly formatted AI answers are rejected and retried, never saved
-- **Swappable AI provider**: switch between a cloud API and a local model by changing one setting
+- **Validation of AI output with Pydantic**: bad answers are rejected and retried, never saved
+- **REST API with FastAPI**: search, filters, pagination, statistics, automatic interactive docs
+- **Web dashboard** (HTML, CSS, JavaScript, Chart.js): stats, topic and timeline charts, news, search, filters, pages
+- **Daily automated pipeline** with logging, fault isolation, run tracking in the database, and an optional email digest
+- **Safe by design**: parameterized SQL (no SQL injection), HTML escaping (no XSS), secrets in `.env`
 
 ---
 
 ## 🏗️ Architecture
 
 ```
-arXiv API ──► fetch_arxiv.py ──► load_papers.py ──► PostgreSQL
-                                                       │
-                                                       ▼
-                       LLM (Claude / Ollama) ◄── ai_enrich.py
-                                │                      │
-                                └──► analysis.py ──────┘
-                                     (validate JSON with Pydantic,
-                                      save only valid results)
+                      ┌──────────────── pipeline.py (daily, Task Scheduler) ────────────────┐
+                      │                                                                      │
+arXiv API ──► load_papers.py ──► PostgreSQL ◄── ai_enrich.py ◄──► LLM (Claude / Ollama)      │
+                      │              ▲   ▲            (validated with Pydantic)              │
+News website ──► scrape_news.py ─────┘   │                                                   │
+                      │                  │                                                   │
+                      └──► logs/ + pipeline_runs table + email digest ───────────────────────┘
+                                         │
+                                  FastAPI (api.py)
+                                         │  JSON
+                                         ▼
+                             Dashboard (HTML / CSS / JS)
 ```
 
 ---
@@ -42,11 +51,14 @@ arXiv API ──► fetch_arxiv.py ──► load_papers.py ──► PostgreSQL
 | Area | Technology |
 |---|---|
 | Language | Python 3 |
-| Data source | arXiv API (`requests`, `feedparser`) |
+| Data sources | arXiv API (`requests`, `feedparser`), web scraping (`BeautifulSoup`) |
 | Database | PostgreSQL 18, `psycopg` |
 | AI | Anthropic Claude API / Ollama (local) |
 | Validation | Pydantic |
-| Config & secrets | `python-dotenv` (`.env` file) |
+| API | FastAPI, Uvicorn |
+| Frontend | HTML, CSS, JavaScript, Chart.js |
+| Automation | Python `logging`, Windows Task Scheduler, `smtplib` (email) |
+| Config & secrets | `python-dotenv` (`.env`) |
 | Version control | Git & GitHub |
 | Development | VS Code, AI coding assistant (Claude) |
 
@@ -56,20 +68,32 @@ arXiv API ──► fetch_arxiv.py ──► load_papers.py ──► PostgreSQL
 
 ```
 robopaper-radar/
-├── data/                 # CSV exports (ignored by Git)
+├── docs/
+│   └── dashboard.png       # screenshot
+├── frontend/
+│   ├── index.html          # dashboard structure
+│   ├── style.css           # dashboard design
+│   └── app.js              # calls the API, renders papers, charts, news
+├── logs/                   # pipeline logs (ignored by Git)
 ├── notes/
-│   └── LEARNING_LOG.md   # progress, concepts, and bugs fixed
+│   └── LEARNING_LOG.md     # progress, concepts, and bugs fixed
 ├── sql/
-│   └── schema.sql        # database tables
+│   └── schema.sql          # database tables
 ├── src/
-│   ├── fetch_arxiv.py    # get papers from the arXiv API
-│   ├── db.py             # database connection
-│   ├── init_db.py        # create / update tables
-│   ├── load_papers.py    # save papers and authors to the database
-│   ├── llm.py            # talk to the AI model (Claude or Ollama)
-│   ├── analysis.py       # prompt + validation of AI output
-│   └── ai_enrich.py      # add AI summaries, topics, difficulty
-├── .env                  # secrets (NOT in Git)
+│   ├── fetch_arxiv.py      # get papers from the arXiv API
+│   ├── db.py               # database connection
+│   ├── init_db.py          # create / update tables
+│   ├── load_papers.py      # save papers and authors
+│   ├── llm.py              # talk to the AI model (Claude or Ollama)
+│   ├── analysis.py         # prompt + validation of AI output
+│   ├── ai_enrich.py        # AI summaries, topics, difficulty
+│   ├── scrape_news.py      # responsible news scraper
+│   ├── schemas.py          # API response models
+│   ├── api.py              # REST API + serves the dashboard
+│   ├── digest.py           # optional email digest
+│   └── pipeline.py         # runs all steps with logging
+├── run_pipeline.bat        # entry point for Task Scheduler
+├── .env                    # secrets (NOT in Git)
 ├── .gitignore
 ├── requirements.txt
 └── README.md
@@ -83,15 +107,35 @@ robopaper-radar/
 papers ──< paper_authors >── authors
    │
    └────< paper_topics  >── topics
+
+news_articles        pipeline_runs
 ```
 
 | Table | Purpose |
 |---|---|
 | `papers` | One row per paper: arXiv ID (unique), title, abstract, date, URL, AI summary, difficulty |
-| `authors` | One row per author |
-| `paper_authors` | Links papers and authors (many-to-many), with author order |
-| `topics` | Research topics (e.g. manipulation, navigation) |
-| `paper_topics` | Links papers and topics (many-to-many) |
+| `authors` / `paper_authors` | Authors and the many-to-many link to papers (with author order) |
+| `topics` / `paper_topics` | Research topics and the many-to-many link to papers |
+| `news_articles` | Scraped headlines (URL unique) |
+| `pipeline_runs` | One row per automated run: status, counts, errors |
+
+---
+
+## 🔌 API Endpoints
+
+Interactive docs are available at `http://127.0.0.1:8000/docs`.
+
+| Endpoint | Description |
+|---|---|
+| `GET /health` | API and database status |
+| `GET /papers` | Papers with `search`, `topic`, `difficulty`, `limit`, `offset` |
+| `GET /papers/{arxiv_id}` | One paper with full abstract |
+| `GET /topics` | Topics with paper counts |
+| `GET /stats/papers-per-day` | Paper count per day |
+| `GET /authors/top` | Authors with the most papers |
+| `GET /news` | Latest scraped industry news |
+
+Example: `GET /papers?topic=manipulation&difficulty=3&limit=5`
 
 ---
 
@@ -99,7 +143,7 @@ papers ──< paper_authors >── authors
 
 ### Requirements
 - Python 3.11+
-- PostgreSQL (with a database named `robopaper`)
+- PostgreSQL with a database named `robopaper`
 - An Anthropic API key **or** Ollama installed locally
 
 ### Setup (Windows / PowerShell)
@@ -117,56 +161,58 @@ Create a `.env` file in the project folder:
 ```
 DATABASE_URL=postgresql://postgres:YOUR_PASSWORD@localhost:5432/robopaper
 
-# Option A: Claude API
+# AI – Option A: Claude API
 LLM_PROVIDER=claude
 ANTHROPIC_API_KEY=your-key-here
 CLAUDE_MODEL=claude-haiku-5-5
+AI_LIMIT=100
 
-# Option B: local model
+# AI – Option B: local model
 # LLM_PROVIDER=ollama
 # OLLAMA_MODEL=llama3.2
+
+# Optional email digest
+# SMTP_HOST=smtp.gmail.com
+# SMTP_PORT=587
+# SMTP_USER=you@gmail.com
+# SMTP_PASSWORD=your-app-password
+# DIGEST_TO=you@gmail.com
 ```
 
-### Run the pipeline
+### Run
 
 ```powershell
-python src/init_db.py          # create tables
-python src/load_papers.py      # fetch papers and save them
-python src/ai_enrich.py 5      # AI-process 5 papers (test first!)
-python src/ai_enrich.py 50     # process more
+python src/init_db.py                      # create tables
+python src/pipeline.py                     # fetch papers, AI enrich, scrape news
+uvicorn api:app --reload --app-dir src     # start API + dashboard
 ```
 
-### Example output
+Open the dashboard at **http://127.0.0.1:8000/**
 
+### Run single steps
+
+```powershell
+python src/load_papers.py      # fetch and save papers
+python src/ai_enrich.py 5      # AI-process 5 papers (test small first)
+python src/scrape_news.py      # scrape news headlines
 ```
-Using claude. Papers to process: 3
 
-✅ Learning Adaptable Dexterous Skills via Hybrid Dexterous Mim...
-   ['manipulation', 'reinforcement learning'] | difficulty 4
-✅ Planning under Noise with Neural Operators
-   ['navigation', 'control'] | difficulty 5
-```
-
-### Example analysis query
-
-```sql
--- Most common research topics right now
-SELECT t.name, COUNT(*) AS papers
-FROM topics t
-JOIN paper_topics pt ON pt.topic_id = t.id
-GROUP BY t.name
-ORDER BY papers DESC;
-```
+### Daily automation (Windows)
+`run_pipeline.bat` is scheduled with Windows Task Scheduler (daily). Logs are written to `logs/pipeline.log`, and every run is recorded in the `pipeline_runs` table.
 
 ---
 
 ## 🧠 Design Decisions
 
-- **Fixed topic list:** prevents messy tags like "RL", "reinforcement learning", and "Reinforcement-Learning" for the same thing, which keeps analysis and charts reliable.
-- **Never trust AI output blindly:** every AI answer is parsed and validated (length, topic list, score range) before it reaches the database.
-- **Idempotent pipeline:** `ON CONFLICT DO NOTHING` and the `ai_processed_at IS NULL` filter mean scripts can be re-run safely, with no duplicates and no paying twice for the same AI call.
-- **Commit per paper:** if one paper fails, all others are still saved, and the failed one is retried on the next run.
-- **Secrets in `.env`:** database password and API key are never in the code or on GitHub.
+- **Fixed topic list:** keeps tags consistent ("RL" vs "reinforcement learning"), so charts and analysis are reliable.
+- **Never trust AI output blindly:** every answer is parsed and validated (length, topics, score range) before saving.
+- **Idempotent steps:** `ON CONFLICT DO NOTHING`, unique URLs, and `ai_processed_at IS NULL` mean every step can run daily with no duplicates and no paying twice for AI.
+- **Commit per item:** one failed paper never loses the others, and failed items are retried next run.
+- **Fault isolation in the pipeline:** each step runs separately; one failure gives status `partial`, not a full crash.
+- **Logging + run table:** text logs for debugging, database records for monitoring.
+- **Cost control:** `AI_LIMIT` caps AI calls per run.
+- **Responsible scraping:** `robots.txt` check, honest User-Agent, same-site links only, headlines only, and a loud error if the page layout changes.
+- **Security:** parameterized SQL, HTML escaping in the dashboard, input limits in the API (422 for invalid values), secrets only in `.env`.
 
 ---
 
@@ -174,12 +220,12 @@ ORDER BY papers DESC;
 
 - [x] Fetch papers from the arXiv API
 - [x] Store papers and authors in PostgreSQL
-- [x] AI summaries, topic tags, and difficulty scores
+- [x] AI summaries, topic tags, difficulty scores
 - [x] Validation of AI output
-- [ ] REST API with FastAPI
-- [ ] Web dashboard (HTML, CSS, JavaScript, charts)
-- [ ] Web scraping of robotics lab / conference pages
-- [ ] Daily automated pipeline + email digest
+- [x] REST API with FastAPI
+- [x] Web dashboard (HTML, CSS, JavaScript, charts)
+- [x] Web scraping of robotics industry news
+- [x] Daily automated pipeline with logging and optional email digest
 - [ ] Docker & docker-compose
 - [ ] "Chat with papers" (semantic search / RAG)
 - [ ] Data quality report page
