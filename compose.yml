@@ -1,0 +1,55 @@
+services:
+
+  # ---------- PostgreSQL database ----------
+  db:
+    image: postgres:18
+    environment:
+      POSTGRES_DB: robopaper
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+    volumes:
+      - pgdata:/var/lib/postgresql      # data survives restarts
+    ports:
+      - "5433:5432"                     # PC port 5433 → container port 5432
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres -d robopaper"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  # ---------- API + dashboard ----------
+  api:
+    build: .
+    env_file: .env
+    environment:
+      DATABASE_URL: postgresql://postgres:${POSTGRES_PASSWORD}@db:5432/robopaper
+    command: sh -c "python src/init_db.py && uvicorn api:app --host 0.0.0.0 --port 8000 --app-dir src"
+    ports:
+      - "8000:8000"
+    depends_on:
+      db:
+        condition: service_healthy
+    restart: unless-stopped
+
+  # ---------- Daily pipeline ----------
+  scheduler:
+    build: .
+    env_file: .env
+    environment:
+      DATABASE_URL: postgresql://postgres:${POSTGRES_PASSWORD}@db:5432/robopaper
+    command: >
+      sh -c "python src/init_db.py &&
+             while true; do
+               python src/pipeline.py;
+               echo 'Next run in 24 hours';
+               sleep 86400;
+             done"
+    volumes:
+      - ./logs:/app/logs                # pipeline logs appear in your logs/ folder
+    depends_on:
+      db:
+        condition: service_healthy
+    restart: unless-stopped
+
+volumes:
+  pgdata:
