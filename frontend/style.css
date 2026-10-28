@@ -1,4 +1,4 @@
-/* Colors in one place, so they're easy to change */
+/* ========== Colors ========== */
 :root {
   --bg: #0f1419;
   --card: #1a2029;
@@ -18,13 +18,24 @@ body {
   line-height: 1.5;
 }
 
+/* ========== Header ========== */
 header { text-align: center; padding: 32px 16px 8px; }
 header h1 { margin: 0; font-size: 2rem; }
 header p { margin: 4px 0 0; color: var(--muted); }
 
+.nav-link {
+  display: inline-block;
+  margin-top: 8px;
+  color: var(--accent);
+  text-decoration: none;
+}
+.nav-link:hover { text-decoration: underline; }
+
 main { max-width: 1100px; margin: 0 auto; padding: 16px; }
 
-/* Cards used everywhere */
+.section-title { margin: 24px 0 12px; font-size: 1rem; color: var(--muted); }
+
+/* ========== Cards ========== */
 .stat-card, .chart-box, .paper {
   background: var(--card);
   border: 1px solid var(--border);
@@ -32,13 +43,15 @@ main { max-width: 1100px; margin: 0 auto; padding: 16px; }
   padding: 16px;
 }
 
-/* Stats row: 3 equal columns */
+/* ========== Stats ========== */
 .stats {
   display: grid;
   grid-template-columns: repeat(3, 1fr);
   gap: 16px;
   margin-bottom: 16px;
 }
+.stats.four { grid-template-columns: repeat(4, 1fr); }
+
 .stat-card { text-align: center; }
 .stat-card span {
   display: block;
@@ -51,7 +64,7 @@ main { max-width: 1100px; margin: 0 auto; padding: 16px; }
 }
 .stat-card small { color: var(--muted); }
 
-/* Charts: 2 columns */
+/* ========== Charts ========== */
 .charts {
   display: grid;
   grid-template-columns: 1fr 1fr;
@@ -60,7 +73,21 @@ main { max-width: 1100px; margin: 0 auto; padding: 16px; }
 }
 .chart-box h2 { margin: 0 0 12px; font-size: 1rem; color: var(--muted); }
 
-/* Filters */
+/* ========== News ========== */
+.news-box {
+  background: var(--card);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  padding: 16px 20px;
+  margin-bottom: 24px;
+}
+.news-box h2 { margin: 0 0 8px; font-size: 1rem; color: var(--muted); }
+.news-box ul { margin: 0; padding-left: 18px; }
+.news-box li { margin: 6px 0; }
+.news-box a { color: var(--text); text-decoration: none; }
+.news-box a:hover { color: var(--accent); }
+
+/* ========== Filters ========== */
 .filters { display: flex; flex-wrap: wrap; gap: 12px; margin-bottom: 16px; }
 .filters input, .filters select {
   padding: 10px 12px;
@@ -74,7 +101,7 @@ main { max-width: 1100px; margin: 0 auto; padding: 16px; }
 
 .message { color: var(--muted); }
 
-/* Paper cards */
+/* ========== Paper cards ========== */
 .papers { display: grid; gap: 12px; }
 .paper { padding: 16px 20px; transition: border-color 0.2s; }
 .paper:hover { border-color: var(--accent); }
@@ -93,7 +120,7 @@ main { max-width: 1100px; margin: 0 auto; padding: 16px; }
 }
 .summary { margin: 0; }
 
-/* Pagination */
+/* ========== Pagination ========== */
 .pagination {
   display: flex;
   justify-content: center;
@@ -111,21 +138,38 @@ main { max-width: 1100px; margin: 0 auto; padding: 16px; }
 }
 .pagination button:disabled { opacity: 0.4; cursor: not-allowed; }
 
-/* Phones: everything in one column */
-@media (max-width: 700px) {
-  .stats, .charts { grid-template-columns: 1fr; }
-}
-
-/* News */
-.news-box {
+/* ========== Quality checks ========== */
+.checks { list-style: none; padding: 0; margin: 0; display: grid; gap: 8px; }
+.check {
+  display: flex;
+  gap: 12px;
+  align-items: flex-start;
   background: var(--card);
   border: 1px solid var(--border);
-  border-radius: 12px;
-  padding: 16px 20px;
-  margin-bottom: 24px;
+  border-left-width: 4px;
+  border-radius: 8px;
+  padding: 10px 14px;
 }
-.news-box h2 { margin: 0 0 8px; font-size: 1rem; color: var(--muted); }
-.news-box ul { margin: 0; padding-left: 18px; }
-.news-box li { margin: 6px 0; }
-.news-box a { color: var(--text); text-decoration: none; }
-.news-box a:hover { color: var(--accent); }
+.check.ok { border-left-color: #3fb950; }
+.check.warning { border-left-color: #d29922; }
+.check small { color: var(--muted); }
+
+/* ========== Runs table ========== */
+.table-box { overflow-x: auto; }
+.runs { width: 100%; border-collapse: collapse; font-size: 0.9rem; }
+.runs th, .runs td {
+  text-align: left;
+  padding: 8px;
+  border-bottom: 1px solid var(--border);
+  white-space: nowrap;
+}
+.runs th { color: var(--muted); font-weight: 600; }
+.status-success { color: #3fb950; }
+.status-partial { color: #d29922; }
+.status-failed { color: #f85149; }
+
+/* ========== Phones (always LAST in the file) ========== */
+@media (max-width: 700px) {
+  .stats, .charts { grid-template-columns: 1fr; }
+  .stats.four { grid-template-columns: 1fr 1fr; }
+}

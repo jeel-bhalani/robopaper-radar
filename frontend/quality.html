@@ -1,0 +1,48 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Data Quality – RoboPaper Radar</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <header>
+    <h1>🩺 Data Quality Report</h1>
+    <p id="summary">Loading...</p>
+    <a href="/" class="nav-link">← Back to dashboard</a>
+  </header>
+
+  <main>
+    <h2 class="section-title">Checks</h2>
+    <ul id="checks" class="checks"></ul>
+
+    <h2 class="section-title">Numbers</h2>
+    <section class="stats four">
+      <div class="stat-card"><span id="q-total">–</span><small>Papers</small></div>
+      <div class="stat-card"><span id="q-ai">–</span><small>AI processed</small></div>
+      <div class="stat-card"><span id="q-pending">–</span><small>AI pending</small></div>
+      <div class="stat-card"><span id="q-news">–</span><small>News articles</small></div>
+    </section>
+
+    <section class="charts">
+      <div class="chart-box">
+        <h2>Papers per difficulty level</h2>
+        <canvas id="difficultyChart"></canvas>
+      </div>
+      <div class="chart-box table-box">
+        <h2>Recent pipeline runs</h2>
+        <table class="runs">
+          <thead>
+            <tr><th>#</th><th>Started</th><th>Status</th><th>New papers</th><th>AI ok / failed</th><th>News</th></tr>
+          </thead>
+          <tbody id="runs"></tbody>
+        </table>
+      </div>
+    </section>
+  </main>
+
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <script src="quality.js"></script>
+</body>
+</html>

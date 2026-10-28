@@ -36,3 +36,48 @@ class NewsItem(BaseModel):
     title: str
     url: str
     scraped_at: datetime
+
+class QualityStats(BaseModel):
+    total_papers: int
+    ai_processed: int
+    ai_pending: int
+    short_or_missing_abstract: int
+    processed_without_topics: int
+    papers_without_authors: int
+    newest_paper: datetime | None
+
+
+class NewsStats(BaseModel):
+    news_count: int
+    last_news: datetime | None
+
+
+class DifficultyCount(BaseModel):
+    difficulty: int
+    paper_count: int
+
+
+class PipelineRun(BaseModel):
+    id: int
+    started_at: datetime
+    finished_at: datetime
+    status: str
+    new_papers: int | None
+    ai_processed: int | None
+    ai_failed: int | None
+    new_news: int | None
+    errors: str | None
+
+
+class Check(BaseModel):
+    name: str
+    status: str
+    detail: str
+
+
+class QualityReport(BaseModel):
+    stats: QualityStats
+    news: NewsStats
+    difficulty: list[DifficultyCount]
+    recent_runs: list[PipelineRun]
+    checks: list[Check]

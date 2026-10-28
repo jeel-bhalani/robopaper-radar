@@ -5,7 +5,10 @@ from pathlib import Path
 from fastapi.staticfiles import StaticFiles
 
 from db import get_connection
-from schemas import Paper, PaperDetail, TopicCount, DayCount, AuthorCount, NewsItem
+from schemas import (
+    Paper, PaperDetail, TopicCount, DayCount, AuthorCount, NewsItem, QualityReport,
+)
+from quality import build_checks
 
 app = FastAPI(
     title="RoboPaper Radar API",
@@ -131,6 +134,55 @@ def list_news(limit: int = Query(10, ge=1, le=50)):
         LIMIT %s
     """, (limit,))
 
+
+QUALITY_STATS_SQL = """
+    SELECT
+        COUNT(*) AS total_papers,
+        COUNT(*) FILTER (WHERE ai_processed_at IS NOT NULL) AS ai_processed,
+        COUNT(*) FILTER (WHERE ai_processed_at IS NULL) AS ai_pending,
+        COUNT(*) FILTER (WHERE summary IS NULL OR LENGTH(summary) < 100)
+            AS short_or_missing_abstract,
+        COUNT(*) FILTER (
+            WHERE ai_processed_at IS NOT NULL
+              AND NOT EXISTS (SELECT 1 FROM paper_topics pt WHERE pt.paper_id = papers.id)
+        ) AS processed_without_topics,
+        COUNT(*) FILTER (
+            WHERE NOT EXISTS (SELECT 1 FROM paper_authors pa WHERE pa.paper_id = papers.id)
+        ) AS papers_without_authors,
+        MAX(published_at) AS newest_paper
+    FROM papers
+"""
+
+
+@app.get("/quality", response_model=QualityReport)
+def quality_report():
+    stats = run_query(QUALITY_STATS_SQL)[0]
+    news = run_query("""
+        SELECT COUNT(*) AS news_count, MAX(scraped_at) AS last_news
+        FROM news_articles
+    """)[0]
+    difficulty = run_query("""
+        SELECT difficulty, COUNT(*) AS paper_count
+        FROM papers
+        WHERE difficulty IS NOT NULL
+        GROUP BY difficulty
+        ORDER BY difficulty
+    """)
+    runs = run_query("""
+        SELECT id, started_at, finished_at, status, new_papers,
+               ai_processed, ai_failed, new_news, errors
+        FROM pipeline_runs
+        ORDER BY id DESC
+        LIMIT 10
+    """)
+    checks = build_checks(stats, runs[0] if runs else None)
+    return {
+        "stats": stats,
+        "news": news,
+        "difficulty": difficulty,
+        "recent_runs": runs,
+        "checks": checks,
+    }
 # Serve the dashboard (must be the LAST line, after all API routes)
 FRONTEND_DIR = Path(__file__).parent.parent / "frontend"
 app.mount("/", StaticFiles(directory=FRONTEND_DIR, html=True), name="frontend")
