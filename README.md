@@ -2,13 +2,56 @@
 
 ![Tests](https://github.com/jeel-bhalani/robopaper-radar/actions/workflows/tests.yml/badge.svg)
 
-**An automated pipeline that collects the newest robotics research papers and industry news, uses AI to summarize and categorize them, and shows everything on a searchable web dashboard.**
+**An automated pipeline that collects the newest robotics research papers and industry news, uses AI to summarize and categorize them, checks data quality, and shows everything on a searchable web dashboard. Runs fully in Docker.**
 
-Every day, hundreds of new robotics papers are published on arXiv. RoboPaper Radar fetches them automatically, writes a short plain-English summary for each one, tags it with research topics, rates its difficulty, scrapes the latest robotics industry headlines, and presents it all in a dashboard with search, filters, and charts.
+Every day, hundreds of new robotics papers are published on arXiv. RoboPaper Radar fetches them automatically, writes a short plain-English summary for each one, tags it with research topics, rates its difficulty, scrapes the latest robotics industry headlines, checks that the data can be trusted, and presents it all in a dashboard with search, filters, and charts.
 
 ![Dashboard](docs/dashboard.png)
 
-> 🚧 **Status:** In active development. Pipeline, database, AI enrichment, REST API, dashboard, scraping, daily automation, and tests with CI are working. Docker and extra features are next (see Roadmap).
+## 📊 Insights from my data
+
+_Based on 186 robotics papers published between 2026-10-24 and 2026-10-27. Average AI-rated difficulty: 3.9/5. Generated with `src/insights.py`._
+
+**Top research topics (last 30 days)**
+
+| Topic | Papers | Share of papers |
+|---|---|---|
+| manipulation | 87 | 47% |
+| foundation models | 59 | 32% |
+| simulation | 50 | 27% |
+| perception | 50 | 27% |
+| control | 44 | 24% |
+
+_A paper can have up to 3 topics, so shares add up to more than 100%._
+
+**Hardest topics (average difficulty, at least 3 papers)**
+
+| Topic | Avg difficulty | Papers |
+|---|---|---|
+| locomotion | 4.1 | 15 |
+| multi-robot | 4.1 | 17 |
+| aerial robots | 4.0 | 18 |
+| control | 4.0 | 44 |
+| reinforcement learning | 4.0 | 39 |
+
+**Topics that appear together most often**
+
+| Topic A | Topic B | Papers |
+|---|---|---|
+| manipulation | foundation models | 43 |
+| manipulation | simulation | 25 |
+| manipulation | reinforcement learning | 17 |
+| manipulation | perception | 16 |
+| control | simulation | 14 |
+
+**Papers by publication weekday**
+
+| Weekday | Papers |
+|---|---|
+| Mon | 72 |
+| Tue | 72 |
+| Sat | 5 |
+| Sun | 37 |>
 
 ---
 
@@ -22,29 +65,34 @@ Every day, hundreds of new robotics papers are published on arXiv. RoboPaper Rad
   - 1–3 topic tags from a fixed list
   - Difficulty score from 1 to 5
 - **Validation of AI output with Pydantic**: bad answers are rejected and retried, never saved
-- **REST API with FastAPI**: search, filters, pagination, statistics, automatic interactive docs
+- **REST API with FastAPI**: search, filters, pagination, statistics, quality report, automatic interactive docs
 - **Web dashboard** (HTML, CSS, JavaScript, Chart.js): stats, topic and timeline charts, news, search, filters, pages
+- **Data quality report**: automatic checks for AI coverage, missing topics/authors/abstracts, pipeline freshness, and run status, plus a run history
+- **Insights from real data**: analysis script for topic trends, difficulty, topic pairs, and publishing patterns
 - **Daily automated pipeline** with logging, fault isolation, and run tracking in the database
-- **Automated tests** for the AI validation logic, run on every push with GitHub Actions
-- **Safe by design**: parameterized SQL (no SQL injection), HTML escaping (no XSS), secrets in `.env`
+- **Docker setup**: database, API, and scheduler start with one command
+- **37 automated tests** (AI validation, scraper, quality checks, API) running on every push with GitHub Actions, plus a Docker build check
+- **Safe by design**: parameterized SQL (no SQL injection), HTML escaping (no XSS), secrets only in `.env`, browsers always revalidate frontend files
 
 ---
 
 ## 🏗️ Architecture
 
 ```
-                      ┌──────────────── pipeline.py (daily, Task Scheduler) ────────────────┐
-                      │                                                                      │
-arXiv API ──► load_papers.py ──► PostgreSQL ◄── ai_enrich.py ◄──► LLM (Claude / Ollama)      │
-                      │              ▲   ▲            (validated with Pydantic)              │
-News website ──► scrape_news.py ─────┘   │                                                   │
-                      │                  │                                                   │
-                      └──► logs/ + pipeline_runs table ──────────────────────────────────────┘
-                                         │
-                                  FastAPI (api.py)
-                                         │  JSON
-                                         ▼
-                             Dashboard (HTML / CSS / JS)
+docker compose up
+│
+├── scheduler container ─ pipeline.py (now, then every 24h)
+│      arXiv API ──► load_papers.py ──┐
+│      News site ──► scrape_news.py ──┼──► PostgreSQL ◄──► ai_enrich.py ◄──► LLM (Claude / Ollama)
+│                                     │        ▲               (validated with Pydantic)
+│      logs/ + pipeline_runs table ◄──┘        │
+│                                              │
+├── db container ─ PostgreSQL 18 (data in a Docker volume)
+│                                              │
+└── api container ─ FastAPI (api.py) ──────────┘
+                       │ JSON
+                       ▼
+        Dashboard + Data quality page (HTML / CSS / JS)
 ```
 
 ---
@@ -53,15 +101,16 @@ News website ──► scrape_news.py ─────┘   │                  
 
 | Area | Technology |
 |---|---|
-| Language | Python 3 |
+| Language | Python 3.12 |
 | Data sources | arXiv API (`requests`, `feedparser`), web scraping (`BeautifulSoup`) |
 | Database | PostgreSQL 18, `psycopg` |
 | AI | Anthropic Claude API / Ollama (local) |
 | Validation | Pydantic |
 | API | FastAPI, Uvicorn |
 | Frontend | HTML, CSS, JavaScript, Chart.js |
-| Automation | Python `logging`, Windows Task Scheduler |
-| Testing & CI | pytest, GitHub Actions |
+| Automation | Python `logging`, Docker scheduler container (Windows Task Scheduler as alternative) |
+| Containers | Docker, Docker Compose |
+| Testing & CI | pytest, FastAPI TestClient, GitHub Actions |
 | Config & secrets | `python-dotenv` (`.env`) |
 | Version control | Git & GitHub |
 | Development | VS Code, AI coding assistant (Claude) |
@@ -73,13 +122,15 @@ News website ──► scrape_news.py ─────┘   │                  
 ```
 robopaper-radar/
 ├── .github/workflows/
-│   └── tests.yml           # runs tests on every push
+│   └── tests.yml           # tests + Docker build on every push
 ├── docs/
 │   └── dashboard.png       # screenshot
 ├── frontend/
-│   ├── index.html          # dashboard structure
-│   ├── style.css           # dashboard design
-│   └── app.js              # calls the API, renders papers, charts, news
+│   ├── index.html          # dashboard
+│   ├── quality.html        # data quality report
+│   ├── style.css           # shared design
+│   ├── app.js              # dashboard logic
+│   └── quality.js          # quality report logic
 ├── logs/                   # pipeline logs (ignored by Git)
 ├── notes/
 │   └── LEARNING_LOG.md     # progress, concepts, and bugs fixed
@@ -94,12 +145,20 @@ robopaper-radar/
 │   ├── analysis.py         # prompt + validation of AI output
 │   ├── ai_enrich.py        # AI summaries, topics, difficulty
 │   ├── scrape_news.py      # responsible news scraper
+│   ├── quality.py          # data quality check rules
+│   ├── insights.py         # analysis queries → Markdown tables
 │   ├── schemas.py          # API response models
-│   ├── api.py              # REST API + serves the dashboard
+│   ├── api.py              # REST API + serves the frontend
 │   └── pipeline.py         # runs all steps with logging
 ├── tests/
-│   └── test_analysis.py    # unit tests for AI output validation
-├── run_pipeline.bat        # entry point for Task Scheduler
+│   ├── test_analysis.py    # AI output validation
+│   ├── test_scraper.py     # headline parsing rules
+│   ├── test_quality.py     # quality check rules
+│   └── test_api.py         # API endpoints (with a fake database)
+├── Dockerfile              # how to build the app image
+├── .dockerignore           # files kept out of the image
+├── compose.yaml            # db + api + scheduler
+├── run_pipeline.bat        # alternative: Windows Task Scheduler
 ├── pytest.ini              # test settings
 ├── .env                    # secrets (NOT in Git)
 ├── .gitignore
@@ -142,32 +201,30 @@ Interactive docs are available at `http://127.0.0.1:8000/docs`.
 | `GET /stats/papers-per-day` | Paper count per day |
 | `GET /authors/top` | Authors with the most papers |
 | `GET /news` | Latest scraped industry news |
+| `GET /quality` | Data quality report: checks, numbers, difficulty distribution, recent runs |
 
 Example: `GET /papers?topic=manipulation&difficulty=3&limit=5`
 
 ---
 
-## 🚀 Getting Started
+## 🚀 Getting Started (Docker, recommended)
 
 ### Requirements
-- Python 3.11+
-- PostgreSQL with a database named `robopaper`
+- Docker Desktop
 - An Anthropic API key **or** Ollama installed locally
 
-### Setup (Windows / PowerShell)
+### 1. Clone
 
 ```powershell
 git clone https://github.com/jeel-bhalani/robopaper-radar.git
 cd robopaper-radar
-python -m venv venv
-venv\Scripts\activate
-pip install -r requirements.txt
 ```
 
-Create a `.env` file in the project folder:
+### 2. Create a `.env` file
 
 ```
-DATABASE_URL=postgresql://postgres:YOUR_PASSWORD@localhost:5432/robopaper
+# Docker database
+POSTGRES_PASSWORD=choose-a-password
 
 # AI – Option A: Claude API
 LLM_PROVIDER=claude
@@ -178,24 +235,51 @@ AI_LIMIT=100
 # AI – Option B: local model
 # LLM_PROVIDER=ollama
 # OLLAMA_MODEL=llama3.2
+# OLLAMA_HOST=http://host.docker.internal:11434
+
+# Only for running without Docker
+DATABASE_URL=postgresql://postgres:YOUR_PASSWORD@localhost:5432/robopaper
 ```
 
-### Run
+### 3. Start everything
 
 ```powershell
-python src/init_db.py                      # create tables
-python src/pipeline.py                     # fetch papers, AI enrich, scrape news
-uvicorn api:app --reload --app-dir src     # start API + dashboard
+docker compose up --build -d
 ```
 
-Open the dashboard at **http://127.0.0.1:8000/**
+This starts three containers:
+- **db**: PostgreSQL 18 (data kept in a Docker volume)
+- **api**: FastAPI + dashboard on port 8000
+- **scheduler**: runs the pipeline immediately, then every 24 hours
 
-### Run single steps
+| Page | URL |
+|---|---|
+| Dashboard | http://127.0.0.1:8000/ |
+| Data quality report | http://127.0.0.1:8000/quality.html |
+| API docs | http://127.0.0.1:8000/docs |
+
+### Useful commands
 
 ```powershell
-python src/load_papers.py      # fetch and save papers
-python src/ai_enrich.py 5      # AI-process 5 papers (test small first)
-python src/scrape_news.py      # scrape news headlines
+docker compose ps                                  # status
+docker compose logs -f scheduler                   # watch the pipeline
+docker compose exec api python src/insights.py     # print data insights
+docker compose down                                # stop (data is kept)
+```
+
+⚠️ `docker compose down -v` also deletes the database volume.
+
+### Running without Docker (local development)
+
+Requires Python 3.11+ and a local PostgreSQL with a database named `robopaper`.
+
+```powershell
+python -m venv venv
+venv\Scripts\activate
+pip install -r requirements.txt
+python src/init_db.py
+python src/pipeline.py
+uvicorn api:app --reload --app-dir src
 ```
 
 ### Run tests
@@ -204,24 +288,31 @@ python src/scrape_news.py      # scrape news headlines
 pytest -v
 ```
 
-The tests check the AI validation rules: valid answers pass, extra text around the JSON is ignored, topics are cleaned and deduplicated, and invalid answers (unknown topics, difficulty outside 1–5, too many topics, too-long summaries, missing or broken JSON) are rejected. They use fake AI answers, so they need no database, API key, or internet. GitHub Actions runs them on every push.
+37 tests check:
+- **AI validation:** valid answers pass; unknown topics, difficulty outside 1–5, too many topics, too-long summaries, and missing or broken JSON are rejected
+- **Scraper:** relative links become absolute; duplicates, short titles, links to other sites, and links outside articles are filtered out
+- **Quality checks:** each rule gives `ok` or `warning` correctly, including edge cases like an empty database
+- **API:** responses, 404 for unknown papers, 422 for invalid parameters (without touching the database), filters passed as SQL parameters, cache headers
 
-### Daily automation (Windows)
-`run_pipeline.bat` is scheduled with Windows Task Scheduler (daily). Logs are written to `logs/pipeline.log`, and every run is recorded in the `pipeline_runs` table.
+The tests use fake data and a fake database, so they need no PostgreSQL, API key, or internet. GitHub Actions runs them on every push and also checks that the Docker image builds.
 
 ---
 
 ## 🧠 Design Decisions
 
 - **Fixed topic list:** keeps tags consistent ("RL" vs "reinforcement learning"), so charts and analysis are reliable.
-- **Never trust AI output blindly:** every answer is parsed and validated (length, topics, score range) before saving, and these rules are covered by unit tests.
+- **Never trust AI output blindly:** every answer is parsed and validated before saving, and these rules are covered by tests.
 - **Idempotent steps:** `ON CONFLICT DO NOTHING`, unique URLs, and `ai_processed_at IS NULL` mean every step can run daily with no duplicates and no paying twice for AI.
-- **Commit per item:** one failed paper never loses the others, and failed items are retried next run.
+- **Commit per item:** one failed paper never loses the others; failed items are retried next run.
 - **Fault isolation in the pipeline:** each step runs separately; one failure gives status `partial`, not a full crash.
-- **Logging + run table:** text logs for debugging, database records for monitoring.
+- **Monitoring:** text logs for debugging, a `pipeline_runs` table and a quality report page for monitoring.
+- **Thresholds from domain knowledge:** e.g. "newest paper ≤ 4 days old," because arXiv doesn't publish on weekends.
+- **Pure functions for testability:** parsing (`parse_headlines`) and check rules (`build_checks`) are separated from network and database code, so they can be tested with fake data.
 - **Cost control:** `AI_LIMIT` caps AI calls per run.
 - **Responsible scraping:** `robots.txt` check, honest User-Agent, same-site links only, headlines only, and a loud error if the page layout changes.
-- **Security:** parameterized SQL, HTML escaping in the dashboard, input limits in the API (422 for invalid values), secrets only in `.env`.
+- **Security:** parameterized SQL, HTML escaping, API input limits (422), secrets only in `.env` and never in the Docker image.
+- **Docker:** one command for the whole stack; the database waits for a healthcheck; data lives in a volume; libraries are installed before copying code for fast rebuilds.
+- **Fresh frontend for every user:** HTML/CSS/JS are sent with `Cache-Control: no-cache`, so browsers check for updates (cheap 304 if unchanged).
 - **Reproducible installs:** `requirements.txt` lists only direct dependencies with pinned versions.
 
 ---
@@ -236,15 +327,16 @@ The tests check the AI validation rules: valid answers pass, extra text around t
 - [x] Web dashboard (HTML, CSS, JavaScript, charts)
 - [x] Web scraping of robotics industry news
 - [x] Daily automated pipeline with logging
-- [x] Unit tests for AI output validation + CI with GitHub Actions
-- [ ] Docker & docker-compose
+- [x] Tests (AI validation, scraper, quality checks, API) + CI with GitHub Actions
+- [x] Docker & docker-compose
+- [x] Data quality report page
+- [x] Insights from real data
 - [ ] "Chat with papers" (semantic search / RAG)
-- [ ] Data quality report page + insights from real data
-- [ ] More tests (API endpoints, scraper)
 - [ ] Email digest of new papers
+- [ ] Deployment to a cloud server
 
 ---
 
 ## 🤝 AI-Assisted Development
 
-This project was built with the help of an AI coding assistant (Claude) for planning, explanations, and debugging. All code was run, tested, and debugged by me. The bugs found and fixed along the way, including feedback from a code review, are documented in `notes/LEARNING_LOG.md`.
+This project was built with the help of an AI coding assistant (Claude) for planning, explanations, and debugging. All code was run, tested, and debugged by me. The bugs found and fixed along the way, including feedback from a code review and a difficult Docker/WSL setup on Windows, are documented in `notes/LEARNING_LOG.md`.
