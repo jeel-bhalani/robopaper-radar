@@ -30,28 +30,32 @@ def allowed_by_robots(url):
     return parser.can_fetch(HEADERS["User-Agent"], url)
 
 
-def scrape_headlines(url):
-    """Download the page and pick out headline links."""
-    response = requests.get(url, headers=HEADERS, timeout=30)
-    response.raise_for_status()
-    soup = BeautifulSoup(response.text, "html.parser")
+def parse_headlines(html, base_url):
+    """Pick headline links out of HTML. Pure function: no internet needed."""
+    soup = BeautifulSoup(html, "html.parser")
 
     articles, seen = [], set()
     for link in soup.select(SELECTOR):
-        title = " ".join(link.get_text().split())   # clean spaces/newlines
-        href = urljoin(url, link.get("href", ""))     # make the link absolute
+        title = " ".join(link.get_text().split())
+        href = urljoin(base_url, link.get("href", ""))
 
-        # Data quality checks
-        if len(title) < 15:        # skip "Read more", icons, empty links
+        if len(title) < 15:
             continue
-        if href in seen:           # same article linked twice on one page
+        if href in seen:
             continue
-        if urlparse(href).netloc != urlparse(url).netloc:  # skip ads/other sites
+        if urlparse(href).netloc != urlparse(base_url).netloc:
             continue
 
         seen.add(href)
         articles.append({"title": title, "url": href})
     return articles
+
+
+def scrape_headlines(url):
+    """Download the page, then parse it."""
+    response = requests.get(url, headers=HEADERS, timeout=30)
+    response.raise_for_status()
+    return parse_headlines(response.text, url)
 
 
 def save_articles(articles):
